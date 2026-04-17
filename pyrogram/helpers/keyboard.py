@@ -1,32 +1,87 @@
+from pyrogram.emoji import (
+    FLAG_UKRAINE, FLAG_UZBEKISTAN, FLAG_SPAIN, FLAG_TURKEY,
+    FLAG_BELARUS, FLAG_GERMANY, FLAG_CHINA, FLAG_UNITED_KINGDOM,
+    FLAG_FRANCE, FLAG_INDONESIA, FLAG_ITALY, FLAG_SOUTH_KOREA, FLAG_RUSSIA
+)
 
+from pyrogram.types import (
+    InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardMarkup, ReplyKeyboardRemove,
+    KeyboardButton, ForceReply
+)
 
-from pyrogram.emoji import FLAG_UKRAINE,FLAG_UZBEKISTAN,FLAG_SPAIN,FLAG_TURKEY,FLAG_BELARUS,FLAG_GERMANY,FLAG_CHINA,FLAG_UNITED_KINGDOM, FLAG_FRANCE, FLAG_INDONESIA, FLAG_ITALY,FLAG_SOUTH_KOREA,FLAG_RUSSIA
-from pyrogram.types import (InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, ForceReply)
+from pyrogram.enums import ButtonStyle
 from typing import List, Union
+import random
 
+# =========================
+# STYLE SYSTEM
+# =========================
+STYLES = [
+    ButtonStyle.PRIMARY,
+    ButtonStyle.SECONDARY,
+    ButtonStyle.SUCCESS,
+    ButtonStyle.DANGER,
+    ButtonStyle.WARNING,
+]
 
+def get_style(style=None, text=""):
+    if style:
+        return style
+    if "hapus" in text.lower():
+        return ButtonStyle.DANGER
+    if "confirm" in text.lower():
+        return ButtonStyle.SUCCESS
+    return random.choice(STYLES)
+
+# =========================
+# CUSTOM BUTTON (GLOBAL OVERRIDE)
+# =========================
+class InlineButton(InlineKeyboardButton):
+    def __init__(self, text=None, callback_data=None, url=None,
+                 login_url=None, user_id=None, switch_inline_query=None,
+                 switch_inline_query_current_chat=None, callback_game=None,
+                 style=None):
+
+        super().__init__(
+            text=text,
+            callback_data=callback_data,
+            url=url,
+            login_url=login_url,
+            user_id=user_id,
+            switch_inline_query=switch_inline_query,
+            switch_inline_query_current_chat=switch_inline_query_current_chat,
+            callback_game=callback_game,
+            style=get_style(style, text or "")
+        )
+
+# 🔥 override global (PENTING)
+InlineKeyboardButton = InlineButton
+
+# =========================
+# INLINE KEYBOARD
+# =========================
 class InlineKeyboard(InlineKeyboardMarkup):
     _SYMBOL_FIRST_PAGE = '« {}'
     _SYMBOL_PREVIOUS_PAGE = '‹ {}'
     _SYMBOL_CURRENT_PAGE = '· {} ·'
     _SYMBOL_NEXT_PAGE = '{} ›'
     _SYMBOL_LAST_PAGE = '{} »'
+
     _LOCALES = {
-        'be_BY': f'{FLAG_BELARUS} Беларуская',          # Belarusian - Belarus
-        'de_DE': f'{FLAG_GERMANY} Deutsch',             # German - Germany
-        'zh_CN': f'{FLAG_CHINA} 中文',                  # Chinese - China
-        # English - United States
-        'en_US': f'{FLAG_UNITED_KINGDOM}  English',
-        'fr_FR': f'{FLAG_FRANCE} Français',             # French - France
-        # Indonesian - Indonesia
+        'be_BY': f'{FLAG_BELARUS} Беларуская',
+        'de_DE': f'{FLAG_GERMANY} Deutsch',
+        'zh_CN': f'{FLAG_CHINA} 中文',
+        'en_US': f'{FLAG_UNITED_KINGDOM} English',
+        'fr_FR': f'{FLAG_FRANCE} Français',
         'id_ID': f'{FLAG_INDONESIA} Bahasa Indonesia',
-        'it_IT': f'{FLAG_ITALY} Italiano',              # Italian - Italy
-        'ko_KR': f'{FLAG_SOUTH_KOREA} 한국어',          # Korean - Korea
-        'tr_TR': f'{FLAG_TURKEY} Türkçe',               # Turkish - Turkey
-        'ru_RU': f'{FLAG_RUSSIA} Русский',              # Russian - Russia
-        'es_ES': f'{FLAG_SPAIN} Español',               # Spanish - Spain
-        'uk_UA': f'{FLAG_UKRAINE} Українська',          # Ukrainian - Ukraine
-        'uz_UZ': f'{FLAG_UZBEKISTAN} Oʻzbekcha',        # Uzbek - Uzbekistan
+        'it_IT': f'{FLAG_ITALY} Italiano',
+        'ko_KR': f'{FLAG_SOUTH_KOREA} 한국어',
+        'tr_TR': f'{FLAG_TURKEY} Türkçe',
+        'ru_RU': f'{FLAG_RUSSIA} Русский',
+        'es_ES': f'{FLAG_SPAIN} Español',
+        'uk_UA': f'{FLAG_UKRAINE} Українська',
+        'uz_UZ': f'{FLAG_UZBEKISTAN} Oʻzbekcha',
     }
 
     def __init__(self, row_width=3):
@@ -43,11 +98,11 @@ class InlineKeyboard(InlineKeyboardMarkup):
     def row(self, *args):
         self.inline_keyboard.append([button for button in args])
 
-    def _add_button(self, text, callback_data):
+    def _add_button(self, text, callback_data, style=None):
         return InlineKeyboardButton(
             text=text,
-            callback_data=self.callback_pattern.format(
-                number=callback_data)
+            callback_data=self.callback_pattern.format(number=callback_data),
+            style=get_style(style, text)
         )
 
     @property
@@ -67,30 +122,18 @@ class InlineKeyboard(InlineKeyboardMarkup):
     @property
     def _middle_pagination(self):
         return [
-            self._add_button(
-                self._SYMBOL_FIRST_PAGE.format(1), 1),
-            self._add_button(
-                self._SYMBOL_PREVIOUS_PAGE.format(self.current_page - 1),
-                self.current_page - 1),
-            self._add_button(
-                self._SYMBOL_CURRENT_PAGE.format(self.current_page),
-                self.current_page),
-            self._add_button(
-                self._SYMBOL_NEXT_PAGE.format(self.current_page + 1),
-                self.current_page + 1),
-            self._add_button(
-                self._SYMBOL_LAST_PAGE.format(self.count_pages),
-                self.count_pages)
+            self._add_button(self._SYMBOL_FIRST_PAGE.format(1), 1),
+            self._add_button(self._SYMBOL_PREVIOUS_PAGE.format(self.current_page - 1), self.current_page - 1),
+            self._add_button(self._SYMBOL_CURRENT_PAGE.format(self.current_page), self.current_page),
+            self._add_button(self._SYMBOL_NEXT_PAGE.format(self.current_page + 1), self.current_page + 1),
+            self._add_button(self._SYMBOL_LAST_PAGE.format(self.count_pages), self.count_pages)
         ]
 
     @property
     def _right_pagination(self):
         return [
-            self._add_button(
-                self._SYMBOL_FIRST_PAGE.format(1), 1),
-            self._add_button(
-                self._SYMBOL_PREVIOUS_PAGE.format(self.count_pages - 3),
-                self.count_pages - 3)
+            self._add_button(self._SYMBOL_FIRST_PAGE.format(1), 1),
+            self._add_button(self._SYMBOL_PREVIOUS_PAGE.format(self.count_pages - 3), self.count_pages - 3)
         ] + [
             self._add_button(
                 self._SYMBOL_CURRENT_PAGE.format(number), number)
@@ -111,32 +154,29 @@ class InlineKeyboard(InlineKeyboardMarkup):
     def _build_pagination(self):
         if self.count_pages <= 5:
             return self._full_pagination
+        elif self.current_page <= 3:
+            return self._left_pagination
+        elif self.current_page > self.count_pages - 3:
+            return self._right_pagination
         else:
-            if self.current_page <= 3:
-                return self._left_pagination
-            elif self.current_page > self.count_pages - 3:
-                return self._right_pagination
-            else:
-                return self._middle_pagination
+            return self._middle_pagination
 
-    def paginate(self, count_pages: int, current_page: int,
-                 callback_pattern: str):
+    def paginate(self, count_pages: int, current_page: int, callback_pattern: str):
         self.count_pages = count_pages
         self.current_page = current_page
         self.callback_pattern = callback_pattern
-
         return self.inline_keyboard.append(self._build_pagination)
 
-    def languages(self, callback_pattern: str, locales: Union[str, List[str]],
-                  row_width: int = 2):
+    def languages(self, callback_pattern: str, locales: Union[str, List[str]], row_width: int = 2):
         locales = locales if isinstance(locales, list) else [locales]
 
         buttons = [
             InlineKeyboardButton(
-                text=self._LOCALES.get(locales[i], 'Invalid locale'),
-                callback_data=callback_pattern.format(locale=locales[i])
+                text=self._LOCALES.get(loc, 'Invalid locale'),
+                callback_data=callback_pattern.format(locale=loc),
+                style=get_style()
             )
-            for i in range(0, len(locales))
+            for loc in locales
         ]
 
         self.inline_keyboard = [
@@ -144,23 +184,9 @@ class InlineKeyboard(InlineKeyboardMarkup):
             for i in range(0, len(buttons), row_width)
         ]
 
-
-class InlineButton(InlineKeyboardButton):
-    def __init__(self, text=None, callback_data=None, url=None,
-                 login_url=None, user_id=None, switch_inline_query=None,
-                 switch_inline_query_current_chat=None, callback_game=None):
-        super().__init__(
-            text=text,
-            callback_data=callback_data,
-            url=url,
-            login_url=login_url,
-            user_id=user_id,
-            switch_inline_query=switch_inline_query,
-            switch_inline_query_current_chat=switch_inline_query_current_chat,
-            callback_game=callback_game
-        )
-
-
+# =========================
+# PAGINATION KEYBOARD
+# =========================
 class InlinePaginationKeyboard(InlineKeyboardMarkup):
     SYMBOL_FIRST_PAGE = '« {}'
     SYMBOL_PREVIOUS_PAGE = '‹ {}'
@@ -168,8 +194,7 @@ class InlinePaginationKeyboard(InlineKeyboardMarkup):
     SYMBOL_NEXT_PAGE = '{} ›'
     SYMBOL_LAST_PAGE = '{} »'
 
-    def __init__(self, count_pages: int, current_page: int,
-                 callback_pattern: str):
+    def __init__(self, count_pages: int, current_page: int, callback_pattern: str):
         self.inline_keyboard = list()
         super().__init__(inline_keyboard=self.inline_keyboard)
         self.count_pages = count_pages
@@ -177,81 +202,12 @@ class InlinePaginationKeyboard(InlineKeyboardMarkup):
         self.callback_pattern = callback_pattern
         self.markup
 
-    def add_button(self, text, callback_data):
+    def add_button(self, text, callback_data, style=None):
         return InlineKeyboardButton(
             text=text,
-            callback_data=self.callback_pattern.format(
-                number=callback_data)
+            callback_data=self.callback_pattern.format(number=callback_data),
+            style=get_style(style, text)
         )
-
-    @property
-    def left_pagination(self):
-        return [
-            self.add_button(
-                self.SYMBOL_CURRENT_PAGE.format(number), number)
-            if number == self.current_page else self.add_button(
-                self.SYMBOL_NEXT_PAGE.format(number), number)
-            if number == 4 else self.add_button(
-                self.SYMBOL_LAST_PAGE.format(self.count_pages),
-                self.count_pages)
-            if number == 5 else self.add_button(number, number)
-            for number in range(1, 6)
-        ]
-
-    @property
-    def middle_pagination(self):
-        return [
-            self.add_button(
-                self.SYMBOL_FIRST_PAGE.format(1), 1),
-            self.add_button(
-                self.SYMBOL_PREVIOUS_PAGE.format(self.current_page - 1),
-                self.current_page - 1),
-            self.add_button(
-                self.SYMBOL_CURRENT_PAGE.format(self.current_page),
-                self.current_page),
-            self.add_button(
-                self.SYMBOL_NEXT_PAGE.format(self.current_page + 1),
-                self.current_page + 1),
-            self.add_button(
-                self.SYMBOL_LAST_PAGE.format(self.count_pages),
-                self.count_pages),
-        ]
-
-    @property
-    def right_pagination(self):
-        return [
-            self.add_button(
-                self.SYMBOL_FIRST_PAGE.format(1), 1),
-            self.add_button(
-                self.SYMBOL_PREVIOUS_PAGE.format(self.count_pages - 3),
-                self.count_pages - 3)
-        ] + [
-            self.add_button(
-                self.SYMBOL_CURRENT_PAGE.format(number), number)
-            if number == self.current_page else self.add_button(number, number)
-            for number in range(self.count_pages - 2, self.count_pages + 1)
-        ]
-
-    @property
-    def full_pagination(self):
-        return [
-            self.add_button(number, number)
-            if number != self.current_page else self.add_button(
-                self.SYMBOL_CURRENT_PAGE.format(number), number)
-            for number in range(1, self.count_pages + 1)
-        ]
-
-    @property
-    def build_pagination(self):
-        if self.count_pages <= 5:
-            return self.full_pagination
-        else:
-            if self.current_page <= 3:
-                return self.left_pagination
-            elif self.current_page > self.count_pages - 3:
-                return self.right_pagination
-            else:
-                return self.middle_pagination
 
     def row(self, *args):
         self.inline_keyboard.append([button for button in args])
@@ -260,23 +216,18 @@ class InlinePaginationKeyboard(InlineKeyboardMarkup):
     def markup(self):
         self.inline_keyboard.append(self.build_pagination)
 
+    @property
+    def build_pagination(self):
+        return [
+            self.add_button(
+                self.SYMBOL_CURRENT_PAGE.format(i), i
+            ) if i == self.current_page else self.add_button(i, i)
+            for i in range(1, self.count_pages + 1)
+        ]
 
-class InlineButton(InlineKeyboardButton):
-    def __init__(self, text=None, callback_data=None, url=None,
-                 login_url=None, user_id=None, switch_inline_query=None,
-                 switch_inline_query_current_chat=None, callback_game=None):
-        super().__init__(
-            text=text,
-            callback_data=callback_data,
-            url=url,
-            login_url=login_url,
-            user_id=user_id,
-            switch_inline_query=switch_inline_query,
-            switch_inline_query_current_chat=switch_inline_query_current_chat,
-            callback_game=callback_game
-        )
-
-
+# =========================
+# REPLY KEYBOARD (UNCHANGED)
+# =========================
 class ReplyKeyboard(ReplyKeyboardMarkup):
     def __init__(self, resize_keyboard=None, one_time_keyboard=None,
                  selective=None, placeholder=None, row_width=3):

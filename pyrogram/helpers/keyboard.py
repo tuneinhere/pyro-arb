@@ -184,7 +184,8 @@ class InlinePaginationKeyboard(InlineKeyboardMarkup):
 class InlineButton(InlineKeyboardButton):
     def __init__(self, text=None, callback_data=None, url=None,
                  login_url=None, user_id=None, switch_inline_query=None,
-                 switch_inline_query_current_chat=None, callback_game=None):
+                 switch_inline_query_current_chat=None, callback_game=None,
+                 style=None): # <--- 1. Harus ada parameter style di sini
         super().__init__(
             text=text,
             callback_data=callback_data,
@@ -193,17 +194,27 @@ class InlineButton(InlineKeyboardButton):
             user_id=user_id,
             switch_inline_query=switch_inline_query,
             switch_inline_query_current_chat=switch_inline_query_current_chat,
-            callback_game=callback_game
+            callback_game=callback_game,
+            style=style # <--- 2. Harus diteruskan ke super() di sini
         )
 
 
+class ReplyButton(KeyboardButton):
+    def __init__(self, text=None, request_contact=None, request_location=None, style=None): # Tambah style
+        super().__init__(
+            text=text,
+            request_contact=request_contact,
+            request_location=request_location,
+            style=style # Kirim style ke sini
+        )
+
 class ReplyKeyboard(ReplyKeyboardMarkup):
-    def __init__(self, resize_keyboard=None, one_time_keyboard=None,
+    def __init__(self, resize_keyboard=True, one_time_keyboard=None,
                  selective=None, placeholder=None, row_width=3):
         self.keyboard = list()
         super().__init__(
             keyboard=self.keyboard,
-            resize_keyboard=resize_keyboard,
+            resize_keyboard=resize_keyboard, # Default True biar rapi
             one_time_keyboard=one_time_keyboard,
             selective=selective,
             placeholder=placeholder
@@ -211,22 +222,31 @@ class ReplyKeyboard(ReplyKeyboardMarkup):
         self.row_width = row_width
 
     def add(self, *args):
+        processed_btns = []
+        for btn in args:
+            # Jika input berupa list [text, style]
+            if isinstance(btn, (list, tuple)):
+                text = btn[0]
+                style = btn[1] if len(btn) > 1 else None
+                processed_btns.append(ReplyButton(text=text, style=style))
+            else:
+                processed_btns.append(btn)
+
         self.keyboard = [
-            args[i:i + self.row_width]
-            for i in range(0, len(args), self.row_width)
+            processed_btns[i:i + self.row_width]
+            for i in range(0, len(processed_btns), self.row_width)
         ]
 
     def row(self, *args):
-        self.keyboard.append([button for button in args])
-
-
-class ReplyButton(KeyboardButton):
-    def __init__(self, text=None, request_contact=None, request_location=None):
-        super().__init__(
-            text=text,
-            request_contact=request_contact,
-            request_location=request_location
-        )
+        processed_btns = []
+        for btn in args:
+            if isinstance(btn, (list, tuple)):
+                text = btn[0]
+                style = btn[1] if len(btn) > 1 else None
+                processed_btns.append(ReplyButton(text=text, style=style))
+            else:
+                processed_btns.append(btn)
+        self.keyboard.append(processed_btns)
 
 
 class ReplyKeyboardRemove(ReplyKeyboardRemove):

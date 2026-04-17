@@ -6,12 +6,40 @@ from pyrogram.types import (
     ForceReply,
 )
 
+# Optional enum
+try:
+    from pyrogram.enums import ButtonStyle
+except:
+    ButtonStyle = None
+
+
+def btn(text, value=None, type="callback_data", style=None, **extra):
+    """
+    Extended InlineKeyboardButton
+
+    Supports:
+    - (text, value)
+    - (text, value, type)
+    - (text, value, type, style)
+    - kwargs tambahan (misal: url, dll)
+    """
+
+    kwargs = {}
+
+    if value:
+        kwargs[type] = value
+
+    if style is not None:
+        kwargs["style"] = style  # ✅ langsung kirim ke Pyrogram mod lu
+
+    kwargs.update(extra)
+
+    return InlineKeyboardButton(text, **kwargs)
+
 
 def ikb(rows=None):
     """
-    Create an InlineKeyboardMarkup from a list of lists of buttons.
-    :param rows: List of lists of buttons. Defaults to empty list.
-    :return: InlineKeyboardMarkup
+    Flexible InlineKeyboard builder
     """
     if rows is None:
         rows = []
@@ -19,80 +47,113 @@ def ikb(rows=None):
     lines = []
     for row in rows:
         line = []
+
         for button in row:
-            button = (
-                btn(button, button) if isinstance(button, str) else btn(*button)
-            )  # InlineKeyboardButton
-            line.append(button)
+            # ========================
+            # STRING
+            # ========================
+            if isinstance(button, str):
+                line.append(btn(button, button))
+
+            # ========================
+            # TUPLE / LIST
+            # ========================
+            elif isinstance(button, (list, tuple)):
+                l = len(button)
+
+                if l == 4:
+                    text, value, type, style = button
+                    line.append(btn(text, value, type, style))
+
+                elif l == 3:
+                    text, value, third = button
+
+                    # 🔥 AUTO DETECT
+                    if isinstance(third, str) and third in [
+                        "callback_data",
+                        "url",
+                        "switch_inline_query",
+                        "switch_inline_query_current_chat",
+                        "callback_game",
+                    ]:
+                        line.append(btn(text, value, third))
+                    else:
+                        # anggap style
+                        line.append(btn(text, value, "callback_data", third))
+
+                elif l == 2:
+                    text, value = button
+                    line.append(btn(text, value))
+
+                else:
+                    raise ValueError(f"Invalid button format: {button}")
+
+            # ========================
+            # LANGSUNG BUTTON OBJECT
+            # ========================
+            elif isinstance(button, InlineKeyboardButton):
+                line.append(button)
+
+            else:
+                raise TypeError(f"Unsupported button type: {type(button)}")
+
         lines.append(line)
+
     return InlineKeyboardMarkup(inline_keyboard=lines)
-    # return {'inline_keyboard': lines}
 
 
-def btn(text, value, type="callback_data"):
-    """
-    Create an InlineKeyboardButton.
+# =============================
+# REVERSE (UPDATED SUPPORT STYLE)
+# =============================
 
-    :param text: Text of the button.
-    :param value: Value of the button.
-    :param type: Type of the button. Defaults to "callback_data".
-    :return: InlineKeyboardButton
-    """
-    return InlineKeyboardButton(text, **{type: value})
-    # return {'text': text, type: value}
-
-
-# The inverse of above
 def bki(keyboard):
-    """
-    Create a list of lists of buttons from an InlineKeyboardMarkup.
-
-    :param keyboard: InlineKeyboardMarkup
-    :return: List of lists of buttons
-    """
     lines = []
     for row in keyboard.inline_keyboard:
         line = []
         for button in row:
-            button = ntb(button)  # btn() format
-            line.append(button)
+            line.append(ntb(button))
         lines.append(line)
     return lines
-    # return ikb() format
 
 
 def ntb(button):
-    """
-    Create a button list from an InlineKeyboardButton.
+    btn_type = None
+    value = None
 
-    :param button: InlineKeyboardButton
-    :return: Button as a list to be used in btn()
-    """
-    for btn_type in [
+    for t in [
         "callback_data",
         "url",
         "switch_inline_query",
         "switch_inline_query_current_chat",
         "callback_game",
     ]:
-        value = getattr(button, btn_type)
-        if value:
+        v = getattr(button, t, None)
+        if v:
+            btn_type = t
+            value = v
             break
-    button = [button.text, value]
-    if btn_type != "callback_data":
-        button.append(btn_type)
-    return button
-    # return {'text': text, type: value}
 
+    result = [button.text, value]
+
+    if btn_type and btn_type != "callback_data":
+        result.append(btn_type)
+
+    # ✅ TAMBAHAN: ambil style kalau ada
+    style = getattr(button, "style", None)
+    if style is not None:
+        if btn_type and btn_type != "callback_data":
+            result.append(style)
+        else:
+            result.append(style)
+
+    return result
+
+
+# =============================
+# REPLY KEYBOARD (UNCHANGED)
+# =============================
 
 def kb(rows=None, **kwargs):
-    """
-    Create a ReplyKeyboardMarkup from a list of lists of buttons.
-
-    :param rows: List of lists of buttons. Defaults to empty list.
-    :param kwargs: Other arguments to pass to ReplyKeyboardMarkup.
-    :return: ReplyKeyboardMarkup
-    """
     if rows is None:
         rows = []
 
@@ -100,39 +161,23 @@ def kb(rows=None, **kwargs):
     for row in rows:
         line = []
         for button in row:
-            button_type = type(button)
-            if button_type == str:
+            if isinstance(button, str):
                 button = KeyboardButton(button)
-            elif button_type == dict:
+            elif isinstance(button, dict):
                 button = KeyboardButton(**button)
 
             line.append(button)
         lines.append(line)
+
     return ReplyKeyboardMarkup(keyboard=lines, **kwargs)
 
 
 kbtn = KeyboardButton
-"""
-Create a KeyboardButton.
-"""
 
 
 def force_reply(selective=True):
-    """
-    Create a ForceReply.
-
-    :param selective: Whether the reply should be selective. Defaults to True.
-    :return: ForceReply
-    """
     return ForceReply(selective=selective)
 
 
 def array_chunk(input_array, size):
-    """
-    Split an array into chunks.
-
-    :param input_array: The array to split.
-    :param size: The size of each chunk.
-    :return: List of chunks.
-    """
     return [input_array[i: i + size] for i in range(0, len(input_array), size)]

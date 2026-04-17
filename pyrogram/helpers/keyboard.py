@@ -1,12 +1,38 @@
-
-
-from pyrogram.emoji import FLAG_UKRAINE,FLAG_UZBEKISTAN,FLAG_SPAIN,FLAG_TURKEY,FLAG_BELARUS,FLAG_GERMANY,FLAG_CHINA,FLAG_UNITED_KINGDOM, FLAG_FRANCE, FLAG_INDONESIA, FLAG_ITALY,FLAG_SOUTH_KOREA,FLAG_RUSSIA
-from pyrogram.types import (InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, ForceReply)
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from typing import List, Union
 
+class InlineButton(InlineKeyboardButton):
+    """Wrapper agar InlineKeyboardButton mendukung parameter style"""
+    def __init__(self, text, callback_data=None, url=None, style=None, **kwargs):
+        super().__init__(
+            text=text,
+            callback_data=callback_data,
+            url=url,
+            style=style,
+            **kwargs
+        )
 
 class InlineKeyboard(InlineKeyboardMarkup):
-    # ... (atribut _SYMBOL dan _LOCALES tetap sama)
+    _SYMBOL_FIRST_PAGE = '« {}'
+    _SYMBOL_PREVIOUS_PAGE = '‹ {}'
+    _SYMBOL_CURRENT_PAGE = '· {} ·'
+    _SYMBOL_NEXT_PAGE = '{} ›'
+    _SYMBOL_LAST_PAGE = '{} »'
+    _LOCALES = {
+        'be_BY': '🇧🇾 Беларуская',
+        'de_DE': '🇩🇪 Deutsch',
+        'zh_CN': '🇨🇳 中文',
+        'en_US': '🇬🇧 English',
+        'fr_FR': '🇫🇷 Français',
+        'id_ID': '🇮🇩 Bahasa Indonesia',
+        'it_IT': '🇮🇹 Italiano',
+        'ko_KR': '🇰🇷 한국어',
+        'tr_TR': '🇹🇷 Türkçe',
+        'ru_RU': '🇷🇺 Русский',
+        'es_ES': '🇪🇸 Español',
+        'uk_UA': '🇺🇦 Українська',
+        'uz_UZ': '🇺🇿 Oʻzbekcha',
+    }
 
     def __init__(self, row_width=3):
         self.inline_keyboard = list()
@@ -14,8 +40,7 @@ class InlineKeyboard(InlineKeyboardMarkup):
         self.row_width = row_width
 
     def add(self, *args):
-        # Memproses args: bisa berupa object InlineKeyboardButton 
-        # atau list/tuple [text, value, style]
+        """Menambahkan tombol. Bisa berupa object InlineButton atau list [text, data, style]"""
         processed_btns = []
         for btn in args:
             if isinstance(btn, (list, tuple)):
@@ -23,12 +48,14 @@ class InlineKeyboard(InlineKeyboardMarkup):
             else:
                 processed_btns.append(btn)
                 
-        self.inline_keyboard = [
+        new_rows = [
             processed_btns[i:i + self.row_width]
             for i in range(0, len(processed_btns), self.row_width)
         ]
+        self.inline_keyboard.extend(new_rows)
 
     def row(self, *args):
+        """Menambahkan satu baris tombol secara spesifik"""
         processed_btns = []
         for btn in args:
             if isinstance(btn, (list, tuple)):
@@ -38,79 +65,21 @@ class InlineKeyboard(InlineKeyboardMarkup):
         self.inline_keyboard.append(processed_btns)
 
     def _parse_btn(self, btn_data):
-        """Helper untuk konversi list/tuple ke Button ber-style"""
+        """Helper internal untuk memproses format [text, data, style]"""
         text = btn_data[0]
         value = btn_data[1]
-        style = btn_data[2] if len(btn_data) > 2 else 0 # Default 0
+        style = btn_data[2] if len(btn_data) > 2 else 0
 
         if isinstance(value, str) and value.startswith("http"):
-            return InlineKeyboardButton(text=text, url=value, style=style)
-        else:
-            return InlineKeyboardButton(text=text, callback_data=str(value), style=style)
+            return InlineButton(text=text, url=value, style=style)
+        return InlineButton(text=text, callback_data=str(value), style=style)
 
-    def _add_button(self, text, callback_data, style=0):
-        # Update agar method internal pagination mendukung style
-        return InlineKeyboardButton(
-            text=text,
-            callback_data=self.callback_pattern.format(number=callback_data),
-            style=style
-        )
+    def _add_pagination_btn(self, text, callback_data, style=0):
+        """Helper internal khusus untuk tombol navigasi halaman"""
+        return InlineButton(
+            text=str(text),
+            callback_data=self.callback_pattern.format(number=callback
 
-    # --- Bagian Pagination (Tambahkan parameter style di paginate) ---
-
-    def paginate(self, count_pages: int, current_page: int,
-                 callback_pattern: str, style: int = 0):
-        self.count_pages = count_pages
-        self.current_page = current_page
-        self.callback_pattern = callback_pattern
-        
-        # Override _add_button sementara atau kirim style ke build
-        pagination_btns = [
-            InlineKeyboardButton(
-                text=btn.text, 
-                callback_data=btn.callback_data, 
-                style=style
-            ) for btn in self._build_pagination
-        ]
-        return self.inline_keyboard.append(pagination_btns)
-
-    def languages(self, callback_pattern: str, locales: Union[str, List[str]],
-                  row_width: int = 2, style: int = 0):
-        locales = locales if isinstance(locales, list) else [locales]
-
-        buttons = [
-            InlineKeyboardButton(
-                text=self._LOCALES.get(locales[i], 'Invalid locale'),
-                callback_data=callback_pattern.format(locale=locales[i]),
-                style=style # Support style di pilihan bahasa
-            )
-            for i in range(0, len(locales))
-        ]
-
-        # Simpan ke inline_keyboard
-        new_rows = [
-            buttons[i:i + row_width]
-            for i in range(0, len(buttons), row_width)
-        ]
-        self.inline_keyboard.extend(new_rows)
-
-
-class InlineButton(InlineKeyboardButton):
-    def __init__(self, text=None, callback_data=None, url=None,
-                 login_url=None, user_id=None, switch_inline_query=None,
-                 switch_inline_query_current_chat=None, callback_game=None,
-                 style=None): # Tambahkan style di sini
-        super().__init__(
-            text=text,
-            callback_data=callback_data,
-            url=url,
-            login_url=login_url,
-            user_id=user_id,
-            switch_inline_query=switch_inline_query,
-            switch_inline_query_current_chat=switch_inline_query_current_chat,
-            callback_game=callback_game,
-            style=style # Teruskan ke parent
-        )
 
 class InlinePaginationKeyboard(InlineKeyboardMarkup):
     SYMBOL_FIRST_PAGE = '« {}'

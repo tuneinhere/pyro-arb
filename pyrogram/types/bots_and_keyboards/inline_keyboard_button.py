@@ -2,7 +2,6 @@
 #  Copyright (C) 2017-present Dan <https://github.com/delivrance>
 
 from typing import Union, Optional
-
 import pyrogram
 from pyrogram import raw
 from pyrogram import types
@@ -41,7 +40,6 @@ class InlineKeyboardButton(Object):
 
     @staticmethod
     def read(b: "raw.base.KeyboardButton"):
-        # Logika pembacaan tombol (read) tetap sama
         if isinstance(b, raw.types.KeyboardButtonCallback):
             try:
                 data = b.data.decode()
@@ -77,68 +75,52 @@ class InlineKeyboardButton(Object):
             return InlineKeyboardButton(text=b.text)
 
     async def write(self, client: "pyrogram.Client"):
-        # --- MODIFIKASI: Menambahkan style=self.style pada setiap return raw ---
-        
+        # --- MODIFIKASI: Menggunakan setattr agar tidak TypeError ---
+        res = None
+
         if self.callback_data is not None:
             data = bytes(self.callback_data, "utf-8") if isinstance(self.callback_data, str) else self.callback_data
-            return raw.types.KeyboardButtonCallback(
+            res = raw.types.KeyboardButtonCallback(text=self.text, data=data)
+
+        elif self.url is not None:
+            res = raw.types.KeyboardButtonUrl(text=self.text, url=self.url)
+
+        elif self.login_url is not None:
+            res = await self.login_url.write(
                 text=self.text,
-                data=data,
-                style=self.style # Suntikkan style
+                bot=await client.resolve_peer(self.login_url.bot_username or "self")
             )
 
-        if self.url is not None:
-            return raw.types.KeyboardButtonUrl(
+        elif self.user_id is not None:
+            res = raw.types.InputKeyboardButtonUserProfile(
                 text=self.text,
-                url=self.url,
-                style=self.style # Suntikkan style
+                user_id=await client.resolve_peer(self.user_id)
             )
 
-        if self.login_url is not None:
-            return await self.login_url.write(
-                text=self.text,
-                bot=await client.resolve_peer(self.login_url.bot_username or "self"),
-                style=self.style # Suntikkan style
-            )
+        elif self.switch_inline_query is not None:
+            res = raw.types.KeyboardButtonSwitchInline(text=self.text, query=self.switch_inline_query)
 
-        if self.user_id is not None:
-            return raw.types.InputKeyboardButtonUserProfile(
-                text=self.text,
-                user_id=await client.resolve_peer(self.user_id),
-                style=self.style # Suntikkan style
-            )
-
-        if self.switch_inline_query is not None:
-            return raw.types.KeyboardButtonSwitchInline(
-                text=self.text,
-                query=self.switch_inline_query,
-                style=self.style # Suntikkan style
-            )
-
-        if self.switch_inline_query_current_chat is not None:
-            return raw.types.KeyboardButtonSwitchInline(
+        elif self.switch_inline_query_current_chat is not None:
+            res = raw.types.KeyboardButtonSwitchInline(
                 text=self.text,
                 query=self.switch_inline_query_current_chat,
-                same_peer=True,
-                style=self.style # Suntikkan style
+                same_peer=True
             )
 
-        if self.callback_game is not None:
-            return raw.types.KeyboardButtonGame(
-                text=self.text,
-                style=self.style # Suntikkan style
-            )
+        elif self.callback_game is not None:
+            res = raw.types.KeyboardButtonGame(text=self.text)
 
-        if self.web_app is not None:
-            return raw.types.KeyboardButtonWebView(
-                text=self.text,
-                url=self.web_app.url,
-                style=self.style # Suntikkan style
-            )
+        elif self.web_app is not None:
+            res = raw.types.KeyboardButtonWebView(text=self.text, url=self.web_app.url)
         
-        if self.copy_text is not None:
-            return raw.types.KeyboardButtonCopy(
-                text=self.text,
-                copy_text=self.copy_text,
-                style=self.style # Suntikkan style
-            )
+        elif self.copy_text is not None:
+            res = raw.types.KeyboardButtonCopy(text=self.text, copy_text=self.copy_text)
+
+        else:
+            res = raw.types.KeyboardButton(text=self.text)
+
+        # Suntikkan style secara paksa jika ada
+        if res is not None and self.style is not None:
+            setattr(res, "style", self.style)
+            
+        return res
